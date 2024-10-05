@@ -9,10 +9,8 @@
 	
 	В версии 1.0.1 добавлен час отчетности. 
 	В версии 1.0.2 изменен способ вывода отчета.  
-	В версии 1.0.3 переделан формат вывода отчета.   
-
 ВЕРСИЯ
-    1.0.3
+    1.0.2
 
 РАЗРАБОТЧИК
     Машкин Руслан (https://t.me/ruslan_mashkin )
@@ -71,25 +69,25 @@ function main()
 		local month = tonumber(getTodayMonth())                                     -- Получаем текущий месяц в виде числа. 
 		local month_day = tonumber(getTodayMonthDay())                              -- Получаем текущий день месяца в виде числа. 
 		local weeks_day = tonumber(getTodayWeeksDay())                              -- Получаем текущий день недели в виде числа. 
-		if weeks_day >= 0 and weeks_day <= 6 then                                     -- Если будние дни
+		if weeks_day > 0 and weeks_day < 6 then                                     -- Если будние дни
 			if (month_day >= reporting_day) then                                    -- Если день отчетности уже настал или прошёл
 				if month ~= tonumber(readFile(filename)) then                       -- Если номер текущего месяца не совпадает с записью в файле.
 					if reporting_hour == getCurrentHour() then                      -- Если час отчетности уже настал. 
 						local telegram_message = ""
 						local security_paper_list =  getSecurityPaperList()         -- Получаем список акций, находящихся в портфеле. 
 						if #security_paper_list > 0 then                            -- Если список не пустой, то формируем сообщение. 
-							telegram_message = "В вашем портфеле находятся следующие акции:\n"
+							telegram_message = "В вашем портфеле находятся следующие акции:"
+							sendMessage(telegram_message)                           -- Отправляем сообщение в телеграм. 
 							
 							for key, value in pairs(security_paper_list) do         -- 
-								telegram_message = telegram_message .. value .. "\n"
+								telegram_message = value
+								sendMessage(telegram_message)                       -- Отправляем сообщение в телеграм. 
 							end
 						else
 							telegram_message = "В вашем портфеле нет акций."
 						end
-							sendMessage(telegram_message)                           -- Отправляем сообщение в телеграм. 
-						
 						writeFile(filename, month)                                  -- Записываем номер месяца в файл. 
-						--message(telegram_message)
+						--message("Отправлен отчет в телеграм.")
 					end
 				end
 			end
@@ -187,57 +185,14 @@ function writeFile(filename, content)
 ВОЗВРАЩАЕМЫЕ ЗНАЧЕНИЯ
     boolean - true, если запись в файл прошла успешно, false - в противном случае.
 ]]
-	local file = io.open(filename, "w")
-	if file then
-		file:write(content)
-		file:close()
-		return true
-	else
-		return false
-	end
-end
-
-function deleteFile(filename)
---[[
-НАЗВАНИЕ
-    deleteFile - функция для удаления файла. 
-
-ОПИСАНИЕ
-    Данная функция удаляет файл с указанным именем.
-
-ПАРАМЕТРЫ
-    filename (string) - имя файла, который нужно удалить.
-
-ВОЗВРАЩАЕМЫЕ ЗНАЧЕНИЯ
-    boolean - true, если файл удален успешно, false - в противном случае.
-]]
-	os.remove(filename)
-
-	local file = io.open(filename, "r")
-	if file then
-		return false
-	else
-		return true
-	end 
-
-end
-
-function Execute(command)
---[[
-НАЗВАНИЕ
-    Execute - функция для выполнения команд в командной строке.  
-
-ОПИСАНИЕ
-    Данная функция выполняет команды в командной строке. 
-
-ПАРАМЕТРЫ
-    command (string) - команда, которую нужно выполнить.
-
-ВОЗВРАЩАЕМЫЕ ЗНАЧЕНИЯ
-    boolean - true, если выполнение команды прошло успешно, false - в противном случае.
-]]
-	local result = os.execute(tostring(command))
-	return result == 0
+  local file = io.open(filename, "w")
+  if file then
+    file:write(content)
+    file:close()
+    return true
+  else
+    return false
+  end
 end
 
 function getTodayMonth() -- int
@@ -415,34 +370,10 @@ function sendMessage(mes)
 	end
 
 	local telegram_Chat_message = mes
+	--message(telegram_Chat_message)
 	-- Используем функцию из модуля для отправки сообщения в Telegram
-	sendTelegramMessage(telegram_API_Key, telegram_Chat_ID, telegram_Chat_message)
+	telegram_module.sendTelegramMessage(telegram_API_Key, telegram_Chat_ID, telegram_Chat_message)
+
 	file:close() -- Закрываем файл.  
 	return true
-end
-
-function sendTelegramMessage(API_Key, Chat_ID, m_message)
---[[ Функция sendTelegramMessage(API_Key, Chat_ID, m_message)
-     Описание: Отправляет сообщение в Telegram.
-     Аргументы:
-         - API_Key: строка, ключ API Telegram.
-         - Chat_ID: строка, идентификатор чата Telegram.
-         - m_message: строка, текст сообщения.
-     Возвращаемое значение: Отсутствует. 
-]]
-	local message_file = agent.."_messagefile.txt"
-	writeFile(message_file, m_message)
-	
-    -- Формирование команды для запуска внешней программы telegram_sender.exe
-    local program_file = ".\\sender.exe "
-    local mess = '$content = Get-Content '..message_file..' -Raw\n'
-    local command = mess .. program_file .. API_Key .. " " .. Chat_ID ..  " $content"
-	-- Создание ps1 файла. 
-	local command_file = agent.."_command_file.ps1"
-	writeFile(command_file, command)
-    -- Запуск команды для отправки сообщения
-	local command_ps1 = "powershell -executionpolicy RemoteSigned -WindowStyle Hidden -file "..command_file
-	Execute(command_ps1)
-	deleteFile(message_file)
-	deleteFile(command_file)
 end
